@@ -47,43 +47,64 @@ def cnnGetUrlSet(self, key_word) -> set:
 
     # CNN
 
-    CNN_url = "https://edition.cnn.com/search?size=20&q="+key_word
-    self.driver.get(CNN_url)
-    BF1 = BF(self.driver.page_source, 'lxml')
-    container_list=BF1.findALL("div", {"class", "cnn-search__result-contents"})
+    cnn_url = "https://edition.cnn.com/search?size=20&q="+key_word
+    self.driver.get(cnn_url)
+    bf1 = BF(self.driver.page_source, 'lxml')
+    container_list=bf1.findALL("div", {"class": "cnn-search__result-contents"})
 
     for container in container_list:
         try:
-            href=container.find("h3").find("a").get("href")
+            href = container.find("h3").find("a").get("href")
+            title = container.find("h3").find("a").get_text()
         except:
             continue
-        real_url_set.add(container)
+        real_url_set.add((href, title))
 
-    def get_url_set(self, key_word):
-        container_list = []  # 存放临时URL
-        real_url_set = set()  # URL集
-
-        # CNN
-
-        CNN_url = "https://edition.cnn.com/search?size=20&q=" + key_word
-        self.driver.get(CNN_url)
-        BF1 = BF(self.driver.page_source, 'lxml')
-        container_list = BF1.findALL("div", {"class", "cnn-search__result-contents"})
-
-        for container in container_list:
-            try:
-                href = container.find("h3").find("a").get("href")
-            except:
-                continue
-            real_url_set.add(container)
-
-        return real_url_set
-
-def cnnGetUrlSet(self, key_word) -> set:
+    return real_url_set
 
 
+def abcNewsGetUrlSet(self, key_word) -> set:
+    container_list = []  # 存放临时URL
+    real_url_set = set()  # URL集
+
+    # abcNews
+
+    abcNews_url = "https://abcnews.go.com/search?r=week&searchtext="+key_word
+    self.driver.get(abcNews_url)
+    BF1 = BF(self.driver.page_source, 'lxml')
+    container_list = BF1.findALL("div", {"class": re.compile("result.*")})
+
+    for container in container_list:
+        try:
+            href = container.find("a", {"class": "title"}).get("href")
+            title = container.find("a", {"class": "title"}).get_text()
+        except:
+            continue
+        real_url_set.add((href, title))
+
+    return real_url_set
 
 
+def tassGetUrlSet(self, key_word) -> set:
+    container_list = []  # 存放临时URL
+    real_url_set = set()  # URL集
+
+    # tass
+
+    tass_url = "https://tass.com/search?sort=date&searchStr" + key_word
+    self.driver.get(tass_url)
+    BF1 = BF(self.driver.page_source, 'lxml')
+    container_list = BF1.findALL("div", {"class": "news-list__item ng-scope"})
+
+    for container in container_list:
+        try:
+            href = "www.tass.con/" + container.find("a").get("href")
+            title = container.find("span", {"class": "news-preview__title ng-binding"}).get_text()
+        except:
+            continue
+        real_url_set.add((href, title))
+
+    return real_url_set
 
 
 #-------------------------------------------------------end Xu --------------------------------------------------------------
