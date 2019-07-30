@@ -28,7 +28,7 @@ class CrawlerBuilder:
         getArticleFunc = self.get_article_func
         articles = list()
 
-        for each_url in self.url_set:
+        for each_url, each_title in self.url_set:
             each_article = getArticleFunc(each_url)
 
             sleep(wait)
@@ -36,6 +36,7 @@ class CrawlerBuilder:
             each_article['time'] = self.time
             each_article['key'] = self.key
             each_article['url'] = each_url
+            each_article['title'] = each_title
 
             articles.append(each_article)
 
