@@ -22,6 +22,7 @@ from time import sleep
 import demjson
 from Article import Article
 from datetime import date
+from bs4 import BeautifulSoup as BF
 #------------------------------------------------------- Zhu ---------------------------------------------------------------
 
 
