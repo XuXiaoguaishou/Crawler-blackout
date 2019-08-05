@@ -1,9 +1,9 @@
 from datetime import datetime
 from time import sleep
-import crawlerfuncs
+import CrawlerFuncs
 
 
-class CrawlerBuilder:
+class CrawlerFactory:
 
     def __init__(
             self,
@@ -11,13 +11,14 @@ class CrawlerBuilder:
             lang,
             get_urlset_func,
             get_article_func,
-            time=datetime.now(),
+
     ):
         self.key = key
-        self.time = time
+        self.searchtime = datetime.now()
         self.lang = lang
         self.get_urlset_func = get_urlset_func
         self.get_article_func = get_article_func
+
 
     def getUrlSet(self):
         getUrlSetFunc = self.get_urlset_func
@@ -28,16 +29,15 @@ class CrawlerBuilder:
         getArticleFunc = self.get_article_func
         articles = list()
 
-        for each_url in self.url_set:
-            each_article = getArticleFunc(each_url)
+        for each_article in self.url_set:
+            each_article = getArticleFunc(each_article)
 
-            sleep(wait)
+            # 此处先行取消sleep，有待结构化
+            # sleep(wait)
 
-            each_article['time'] = self.time
-            each_article['key'] = self.key
-            each_article['url'] = each_url
+            each_article.searchtime = self.searchtime
+            each_article.key = self.key
 
             articles.append(each_article)
 
         return articles
-
