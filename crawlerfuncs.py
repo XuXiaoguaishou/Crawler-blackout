@@ -207,9 +207,15 @@ FUNCS = {
 }
 
 def test():
-    s = xinhuaGetUrlSet('停电', num=20)
 
-    for each_article in s:
-        '{:40} {}'.format(each_article.url, each_article.pubtime)
+    # s = xinhuaGetUrlSet('停电', num=20)
+    #
+    # for each_article in s:
+    #     print('{:40} {}'.format(each_article.url, each_article.pubtime))
+
+    t = tassGetUrlSet("blackout")
+
+
+
 
 test()
