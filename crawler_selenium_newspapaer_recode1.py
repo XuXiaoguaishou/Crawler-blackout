@@ -84,8 +84,6 @@ def get_url_set(self, key_word):
                     real_url_set.add(href)
 
 
-
-
 class crawler:
     driver=None
     key_list=[]

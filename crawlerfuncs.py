@@ -15,19 +15,32 @@
           在本函数内，至少要定义每个Article对象的 content/site/lang 字段
 
 """
-
+from selenium import webdriver
 import re
 from urllib import request
 import time
 from time import sleep
 import demjson
 from Article import Article
-from Key import Key
+#from Key import Key
 from datetime import date
 from bs4 import BeautifulSoup as BF
 import requests
 
 from newspaper.api import fulltext
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+
+
+MAX_PAGE = 1
+headers = {
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, compress',
+    'Accept-Language': 'en-us;q=0.5,en;q=0.3',
+    'Cache-Control': 'max-age=0',
+    'Connection': 'keep-alive',
+    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'
+}
 #------------------------------------------------------- Zhu ---------------------------------------------------------------
 
 
@@ -129,27 +142,53 @@ def xinhuaGetUrlSet(key, num=10):
 
 #------------------------------------------------------- Xu ----------------------------------------------------------------
 
-def baiduGetUrlSet(self, key_word) -> set:
+def reutersGetUrlSet(key_word) ->list:
+    driver = get_driver(0,0)
+    articles = []  # URL集
+    reuters_url = "https://cn.reutersmedia.net/assets/searchArticleLoadMoreJson?" + \
+          "blob=" + key_word + "&" + \
+          "bigOrSmall=big&articleWithBlog=true&sortBy=relevance&" + \
+          "dateRange=all&numResultsToShow=20" +\
+          "&pn=1&callback=addMoreNewsResults"
+    driver.get(reuters_url)
+    content = driver.page_source
+    pattern = re.compile(r'href: "(?P<urlend>.+)"')
+    container_list = pattern.findall(content)
 
+    for container in container_list:
+        cur_article = Article()
+        href = "https://cn.reutersmedia.net" + container
+        cur_article.url = href
+        articles.append(cur_article)
+    driver.close()
+    return articles
+
+
+
+
+
+
+def baiduGetUrlSet(key_word) -> set:       #tested
+    driver = get_driver()
     container_list = []  # 存放临时URL
-    articles = list()  # article 集合
+    articles = []  # article 集合
     baidu_url_list = ["https://www.baidu.com/s?ie=UTF-8&wd=" + key_word,
                       "https://www.baidu.com/s?ie=UTF-8&tn=news&wd=" + key_word]
     #百度网页搜索与新闻搜索
     for i in range(2):
-        self.driver.get(baidu_url_list[i])
+        driver.get(baidu_url_list[i])
         # 获取每条搜索结果的URL
-        for page in range(1, self.MAX_PAGEs + 1):
-            BF1 = BF(self.driver.page_source, 'lxml')
+        for page in range(1, MAX_PAGE + 1):
+            BF1 = BF(driver.page_source, 'lxml')
             # print(driver.page_source)
             if i == 0:
                 page_container_list = BF1.findAll("div", {"class": re.compile(".*c-container.*")})
             else:
-                page_container_list = BF1.findAll("div", {"class": re.compile("result")})
+                page_container_list = BF1.findAll("div", {"class": "result"})
             # print(page_container_list)
             container_list.extend(page_container_list)
             #多个页面
-            b = self.driver.find_element_by_xpath("//*[text()='下一页>']").click()
+            b = driver.find_element_by_xpath("//*[text()='下一页>']").click()
             time.sleep(2)
         if i == 0:
             # print(container_list)
@@ -157,7 +196,7 @@ def baiduGetUrlSet(self, key_word) -> set:
                 # print(container)
                 try:
                     href = container.find("h3").find("a").get("href")
-                    baidu_url = requests.get(url=href, headers=self.headers, allow_redirects=False)
+                    baidu_url = requests.get(url=href, headers=headers, allow_redirects=False)
                 except:
                     continue
                 real_url = baidu_url.headers['Location']  # 得到网页原始地址
@@ -169,7 +208,10 @@ def baiduGetUrlSet(self, key_word) -> set:
                         #有些搜索结果没有图片
                     except:
                         cur_article.img = ""
-                    cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[:-13]
+                    try:
+                        cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[:-13]
+                    except:
+                        cur_article.pubtime = ""
                     raw_title = container.find("h3", {"class": "t"}).find("a").get_text()
                     cur_article.title = re.sub("\"|<em>|</em>", "", raw_title)
                     articles.append(cur_article)
@@ -183,31 +225,36 @@ def baiduGetUrlSet(self, key_word) -> set:
                     cur_article = Article()
                     cur_article.url = real_url + '\n'
                     cur_article.img= ""
-                    cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[
+                    try:
+                        cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[
                                           :-17]
+                    except:
+                        cur_article.pubtime = ""
                     raw_title = container.find("h3", {"class": "c-title"}).find("a").get_text()
                     cur_article.title = re.sub("\"|<em>|</em>", "", raw_title)
                     articles.append(cur_article)
+    driver.close()
     return articles
 
 
-def googleGetUrlSet(self, key_word) -> set:
+def googleGetUrlSet(key_word) -> set:     #tested
+    driver = get_driver()
     google_url_list = ["https://www.google.com.hk/search?q=" + key_word,
                        "https://www.google.com/search?q={}&tbm=nws".format(key_word)]
     container_list = []  # 存放临时URL
-    articles = list()  # article 集合
+    articles = []  # article 集合
     for google_tag in range(0,2):
         try:
-            self.driver.get(google_url_list[google_tag])
+            driver.get(google_url_list[google_tag])
         except:
-            self.driver.refresh()
+            driver.refresh()
         # 需要刷新一下界面
         time.sleep(2)
-        self.driver.refresh()
+        driver.refresh()
         time.sleep(5)
-        self.driver.get(google_url_list[google_tag])
-        for page in range(1, self.MAX_PAGEs + 1):
-            BF1 = BF(self.driver.page_source)
+        driver.get(google_url_list[google_tag])
+        for page in range(1, MAX_PAGE + 1):
+            BF1 = BF(driver.page_source)
             # print(driver.page_source)
             page_container_list = BF1.findAll("div", {"class": "g"})
             for container in page_container_list:
@@ -219,7 +266,7 @@ def googleGetUrlSet(self, key_word) -> set:
                     else:
                         try:
                             imge_url = container.find("img").get("src")
-                        except
+                        except:
                             imge_url = ""
                         raw_title = container.find("h3").find("a").get_text()
                         title = re.sub("\"|<em>|</em>", "", raw_title)
@@ -234,16 +281,19 @@ def googleGetUrlSet(self, key_word) -> set:
                 cur_article.pubtime = pubtime
                 articles.append(cur_article)
 
-            b = self.driver.find_element_by_xpath("//*[text()='下一页']").click()
+            b = driver.find_element_by_xpath("//*[text()='下一页']").click()
             time.sleep(2)
+    driver.close()
     return articles
 
-def wikiGeturlSet(self, key_word) -> list():
-    wiki_url="https://zh.wikipedia.org/w/index.php?sort=relevance&profile=advanced&fulltext=1&ns0=1&search"+key_word
-    articles = list()  # URL集
-    self.driver.get(wiki_url)
-    bf1 = BF(self.driver.page_source, 'lxml')
-    container_list = bf1.findALL("li", {"class": "mw-search-result"})
+
+def wikiGeturlSet(key_word) -> list():               #tested
+    driver = get_driver()
+    wiki_url = "https://zh.wikipedia.org/w/index.php?sort=relevance&profile=advanced&fulltext=1&ns0=1&search="+key_word
+    articles = []  # URL集
+    driver.get(wiki_url)
+    bf1 = BF(driver.page_source, 'lxml')
+    container_list = bf1.find_all("li", {"class": "mw-search-result"})
     for container in container_list:
         try:
             imge_url = ""
@@ -251,7 +301,7 @@ def wikiGeturlSet(self, key_word) -> list():
             title = container.find("a").get_text()
             raw_pubtime = container.find("div", {"class": "mw-search-result-data"}).get_text()
             pattern = re.compile(".*- (.*)")
-            pubtime = re.match(pattern, pubtime).group(1)
+            pubtime = re.match(pattern, raw_pubtime).group(1)
         except:
             continue
         cur_article = Article()
@@ -260,21 +310,21 @@ def wikiGeturlSet(self, key_word) -> list():
         cur_article.url = href
         cur_article.pubtime = pubtime
         articles.append(cur_article)
+    driver.close()
     return articles
 
-def cnnGetUrlSet(self, key_word) -> set:
-    container_list = []  # 存放临时URL
-    articles = list()  # URL集
 
+def cnnGetUrlSet(key_word) -> set:       #tested
+    driver = get_driver()
+    articles = []  # URL集
     cnn_url = "https://edition.cnn.com/search?size=20&q="+key_word
-    self.driver.get(cnn_url)
-    bf1 = BF(self.driver.page_source, 'lxml')
-    container_list = bf1.findALL("div", {"class": "cnn-search__result cnn-search__result--article"})
-
+    driver.get(cnn_url)
+    bf1 = BF(driver.page_source, 'lxml')
+    container_list = bf1.find_all("div", {"class": "cnn-search__result cnn-search__result--article"})
     for container in container_list:
         try:
             imge_url = container.find("div", {"class": "cnn-search__result-thumbnail"}).find("img").get("src")
-            href = container.find("div", {"class": "cnn-search__result-contents"}).find("h3").find("a").get("href")
+            href = "http:" + container.find("div", {"class": "cnn-search__result-contents"}).find("h3").find("a").get("href")
             title = container.find("div", {"class": "cnn-search__result-contents"}).find("h3").find("a").get_text()
             pubtime = container.find("div", {"class": "cnn-search__result-publish-date"}).findAll("span")[1].get_text()
         except:
@@ -285,32 +335,32 @@ def cnnGetUrlSet(self, key_word) -> set:
         cur_article.url = href
         cur_article.pubtime = pubtime
         articles.append(cur_article)
+    driver.close()
     return articles
 
 
-def abcNewsGetUrlSet(self, key_word) -> set:
-    container_list = []  # 存放临时URL
-    articles = list()  # URL集
-
-    # abcNews
-
+def abcNewsGetUrlSet(key_word) -> set:
+    driver = get_driver(0,1)
+    articles = []  # URL集
     abcNews_url = "https://abcnews.go.com/search?r=week&searchtext="+key_word
-    self.driver.get(abcNews_url)
-    BF1 = BF(self.driver.page_source, 'lxml')
-    container_list = BF1.findALL("div", {"class": re.compile("result.*")})
+    driver.get(abcNews_url)
+    BF1 = BF(driver.page_source)
+    container_list = BF1.find_all("div", {"class": re.compile("result.*")})
 
     for container in container_list:
-        # try:
-        #     href = container.find("a", {"class": "title"}).get("href")
-        #     title = container.find("a", {"class": "title"}).get_text()
-        # except:
-        #     continue
         try:
-            imge_url = container.find("div", {"class": "cnn-search__result-thumbnail"}).find("img").get("src")
-            href = container.find("div", {"class": "cnn-search__result-contents"}).find("h3").find("a").get("href")
-            title = container.find("div", {"class": "cnn-search__result-contents"}).find("h3").find("a").get_text()
-            pubtime = container.find("div", {"class": "cnn-search__result-publish-date"}).findAll("span")[1].get_text()
-        except:
+            try:
+                imge_url = container.find("img").get("src")
+            except:
+                imge_url = ""
+            href = container.find("a", {"class": "title"}).get("href")
+            title = container.find("a", {"class": "title"}).get_text()
+            driver.get(href)
+            html = driver.page_source
+            BF1 = BF(html)
+            pubtime = BF1.find("span", {"class": re.compile("article-date|timestamp")}).get_text()
+        except Exception as e:
+            print(e)
             continue
         cur_article = Article()
         cur_article.title = title
@@ -318,32 +368,38 @@ def abcNewsGetUrlSet(self, key_word) -> set:
         cur_article.url = href
         cur_article.pubtime = pubtime
         articles.append(cur_article)
+    driver.close()
     return articles
 
 
-def tassGetUrlSet(self, key_word) -> list:
-    container_list = []  # 存放临时URL
-    articles = list()  # URL集
-
-    # tass
-
-    tass_url = "https://tass.com/search?sort=date&range=week&searchStr" + key_word
-    self.driver.get(tass_url)
-    BF1 = BF(self.driver.page_source, 'lxml')
-    container_list = BF1.findALL("div", {"class": "news-list__item ng-scope"})
-
+def tassGetUrlSet(key_word) -> list:      #tested
+    articles = []  # URL集
+    driver = get_driver(0, 1, 0)
+    tass_url = "http://tass.com/search?sort=date&range=week&searchStr=" + key_word
+    driver.get(tass_url)
+    BF1 = BF(driver.page_source, 'lxml')
+    #print(BF1)
+    container_list = BF1.find_all("div", {"data-ng-repeat": re.compile(".*searchResult")})
+    #print(container_list)
     for container in container_list:
         try:
-            href = "www.tass.con/" + container.find("a").get("href")
+            href = "http://www.tass.com" + container.find("a").get("href")
             title = container.find("span", {"class": "news-preview__title ng-binding"}).get_text()
             try:
                 imge_url = container.find("div", {"data-ng-if": "item.image"}).find("div").get("style")[23:-2]
-            except:
+            except Exception as e:
+                print(e)
                 imge_url = ""
-            self.driver.get(href)
-            BF1 = BF(self.driver.page_source, 'lxml')
-            pubtime = BF1.find("span", {"data-ng-if": "visibleDate"}).get_text()
-        except:
+            #print(href)
+            time.sleep(2)
+            driver.get(href)
+            html = driver.page_source
+            #print(html)
+            BF2 = BF(html)
+            pubtime = BF2.find("span", {"data-ng-if": "visibleDate", "class": "ng-binding ng-scope"}).get_text()
+            #print(pubtime)
+        except Exception as e:
+            print(e)
             continue
         cur_article = Article()
         cur_article.title = title
@@ -351,6 +407,7 @@ def tassGetUrlSet(self, key_word) -> list:
         cur_article.url = href
         cur_article.pubtime = pubtime
         articles.append(cur_article)
+    driver.close()
     return articles
 
 
@@ -359,27 +416,27 @@ def baiduGetArticle(url) -> dict:
     # do some thing
     return article
 
-def getArticle(self, key_word, articles):
 
+def getArticles(articles):
+    driver = get_driver(0, 1, 0)
     count = 0
     for article in articles:
         try:
             time.sleep(1)
             try:
-                self.driver.get(article.url)
+                driver.get(article.url)
             except:
-                self.driver.refresh()
+                driver.refresh()
             time.sleep(2)
-            self.driver.refresh()
+            driver.refresh()
             js = "var q=document.documentElement.scrollTop=100000"
-            self.driver.execute_script(js)
+            driver.execute_script(js)
             time.sleep(3)
-            text = fulltext(self.driver.page_source, language='zh')
+            text = fulltext(driver.page_source, language='zh')
             # news=Article(real_url,language='zh')
             # news.download()
             # news.parse()
             article.content = text
-
             # filename = str(count) + ".txt"
             # f = open(path + "/" + filename, "w")
             # # f.write(news.title)
@@ -391,7 +448,7 @@ def getArticle(self, key_word, articles):
             count = count + 1
         except:
             continue
-    return 0
+    return articles
 
 
 def getKeys(key_content) -> list:
@@ -408,22 +465,62 @@ def getKeys(key_content) -> list:
             cur_Key.language=0
         cur_Key.key=key
     return real_key_list
+
+
+
+def get_driver(is_headless=0, is_eager=0, load_images=1):
+    options = webdriver.ChromeOptions()
+    prefs={
+        'profile.default_content_setting_values': {
+            'images': load_images,
+            #'video':2
+        }
+    }
+    #options.add_argument("--user-data-dir="+r"C:/Users/Liuyus\AppData/Local/Google/Chrome/User Data/")
+    options.add_experimental_option('prefs', prefs)
+    if is_headless:
+        options.add_argument('--headless')
+    else:
+        pass
+    if is_eager:
+        desired_capabilities = DesiredCapabilities.CHROME  # 修改页面加载策略
+        desired_capabilities["pageLoadStrategy"] = "eager"
+    else:
+        pass
+    driver = webdriver.Chrome(executable_path=r"H:\Github\Crawler-blackout\chromedriver.exe",chrome_options=options)
+    return driver
 #-------------------------------------------------------end Xu --------------------------------------------------------------
 
-FUNCS = {
 
-}
+
 
 def test():
-
+    #driver = get_driver()
     # s = xinhuaGetUrlSet('停电', num=20)
     #
     # for each_article in s:
     #     print('{:40} {}'.format(each_article.url, each_article.pubtime))
+    articles = []
+    key = "today"
+    articles.extend(baiduGetUrlSet(key))
+    articles.extend(googleGetUrlSet(key))
+    articles.extend(cnnGetUrlSet(key))
+    #articles.extend(tassGetUrlSet(key))       #chrome加载时间太长
+    articles.extend(wikiGeturlSet(key))
+    #articles.extend(abcNewsGetUrlSet(key))        #大部分？都是视频
 
-    t = tassGetUrlSet("blackout")
+    # articles.extend()
+    # articles.extend()
+    # articles.extend()
 
+    articles = getArticles(articles)
+    for article in articles:
+        print(article.content)
+    print("-------------------------------------------------")
 
+    # print(reutersGetUrlSet("停电"))
 
 
 test()
+
+
