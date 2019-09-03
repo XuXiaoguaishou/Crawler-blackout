@@ -219,20 +219,18 @@ def baiduGetUrlSet(key_word) -> set:       #tested
         else:
             for container in container_list:
                 href = container.find("h3").find("a").get("href")
-                if "baijiahao" in href:
-                    continue
-                else:
-                    cur_article = Article()
-                    cur_article.url = real_url + '\n'
-                    cur_article.img= ""
-                    try:
-                        cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[
-                                          :-17]
-                    except:
-                        cur_article.pubtime = ""
-                    raw_title = container.find("h3", {"class": "c-title"}).find("a").get_text()
-                    cur_article.title = re.sub("\"|<em>|</em>", "", raw_title)
-                    articles.append(cur_article)
+
+                cur_article = Article()
+                cur_article.url = href + '\n'
+                cur_article.img= ""
+                try:
+                    cur_article.pubtime = container.find("span", {"class": " newTimeFactor_before_abs m"}).get_text()[
+                                        :-17]
+                except:
+                    cur_article.pubtime = ""
+                raw_title = container.find("h3", {"class": "c-title"}).find("a").get_text()
+                cur_article.title = re.sub("\"|<em>|</em>", "", raw_title)
+                articles.append(cur_article)
     driver.close()
     return articles
 
@@ -280,6 +278,7 @@ def googleGetUrlSet(key_word) -> set:     #tested
                 cur_article.url = href
                 cur_article.pubtime = pubtime
                 articles.append(cur_article)
+                print(cur_article.url)
 
             b = driver.find_element_by_xpath("//*[text()='下一页']").click()
             time.sleep(2)
