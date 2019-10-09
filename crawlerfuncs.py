@@ -469,9 +469,9 @@ def test():
     key = "停电"
     articles.extend(baiduGetUrlSet(key))
     articles.extend(googleGetUrlSet(key))
-    #articles.extend(cnnGetUrlSet(key))
+    articles.extend(cnnGetUrlSet(key))
     #articles.extend(tassGetUrlSet(key))       #chrome加载时间太长
-    #articles.extend(wikiGeturlSet(key))
+    articles.extend(wikiGeturlSet(key))
     #articles.extend(abcNewsGetUrlSet(key))        #大部分？都是视频
 
     # articles.extend()
@@ -479,8 +479,16 @@ def test():
     # articles.extend()
 
     articles = getArticles(articles)
+    path = r"C:\Users\xgs0117\Desktop\tingdian"
+    i = 1
     for article in articles:
         print(article.content)
+
+        file = open(path + "\\" + str(i) + '.txt', 'w', encoding='utf-8')
+        i = i+1
+        file.write(article.content)
+        file.close()
+
     print("-------------------------------------------------")
 
     # print(reutersGetUrlSet("停电"))
